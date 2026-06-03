@@ -1,0 +1,1159 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+//
+// ======================================================
+// ENUMS
+// ======================================================
+//
+
+enum OrganizationStatus {
+  active
+  suspended
+  archived
+  pending_setup
+}
+
+enum RoleScope {
+  organization
+  workspace
+  global
+}
+
+//
+// ======================================================
+// ORGANIZATIONS
+// ======================================================
+//
+
+model Organization {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+
+  name String @db.VarChar(255)
+
+  slug String @unique @db.VarChar(100)
+
+  display_name String? @db.VarChar(255)
+
+  logo_url String?
+
+  domain String? @db.VarChar(255)
+
+  domain_verified Boolean @default(false)
+
+  status OrganizationStatus @default(active)
+
+  metadata Json @default(dbgenerated("'{}'::jsonb"))
+
+  settings Json
+
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+
+  updated_at DateTime @updatedAt @db.Timestamptz(6)
+
+  //
+  // relations
+  //
+
+  users User[]
+
+  orgUnits OrgUnit[]
+
+  workspaces Workspace[]
+
+  orgMemberships OrgMembership[]
+
+  roles Role[]
+
+  permissions Permission[]
+
+  userRoleAssignments UserRoleAssignment[]
+
+  policies Policy[]
+
+  policyAttachments PolicyAttachment[]
+
+  attributeDefinitions AttributeDefinition[]
+
+  permissionBoundaries PermissionBoundary[]
+
+  userPermissionBoundaries UserPermissionBoundary[]
+
+  serviceAccounts ServiceAccount[]
+
+  serviceAccountRoleAssignments ServiceAccountRoleAssignment[]
+
+  sessions Session[]
+
+  auditLogs AuditLog[]
+
+  apiKeys ApiKey[]
+
+  identityProviders IdentityProvider[]
+
+  //
+  // db table
+  //
+
+  //
+  // indexes
+  //
+
+  @@index([slug], map: "idx_organizations_slug")
+  @@index([status], map: "idx_organizations_status")
+  @@map("organizations")
+}
+
+//
+// ======================================================
+// ORG UNITS
+// ======================================================
+//
+
+model OrgUnit {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+
+  org_id String @db.Uuid
+
+  organization Organization @relation(fields: [org_id], references: [id], onDelete: Cascade)
+
+  parent_id String? @db.Uuid
+
+  parent OrgUnit? @relation("OrgUnitHierarchy", fields: [parent_id], references: [id], onDelete: Cascade)
+
+  children OrgUnit[] @relation("OrgUnitHierarchy")
+
+  name String @db.VarChar(255)
+
+  slug String @db.VarChar(100)
+
+  description String?
+
+  //
+  // TEMPORARY
+  // convert to LTREE after migration
+  //
+
+  path String
+
+  metadata Json @default(dbgenerated("'{}'::jsonb"))
+
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+
+  updated_at DateTime @updatedAt @db.Timestamptz(6)
+
+  memberships OrgMembership[]
+
+  // @@unique([org_id, slug])
+  @@unique([org_id, slug], name: "org_id_slug")
+  @@index([org_id])
+  @@map("org_units")
+}
+
+//
+// ======================================================
+// USERS
+// ======================================================
+//
+
+model User {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+
+  org_id String? @db.Uuid
+
+  organization Organization? @relation(fields: [org_id], references: [id], onDelete: Cascade)
+
+  first_name String? @db.VarChar(255)
+
+  last_name String? @db.VarChar(255)
+
+  email String @unique @db.VarChar(255)
+
+  password_hash String?
+
+  avatar_url String?
+
+  is_email_verified Boolean @default(false)
+
+  is_active Boolean @default(true)
+
+  metadata Json @default(dbgenerated("'{}'::jsonb"))
+
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+
+  updated_at DateTime @updatedAt @db.Timestamptz(6)
+
+  //
+  // relations
+  //
+
+  orgMemberships OrgMembership[]
+
+  userRoleAssignments UserRoleAssignment[]
+
+  userPermissionBoundaries UserPermissionBoundary[]
+
+  sessions Session[]
+
+  auditLogs AuditLog[]
+
+  apiKeys ApiKey[]
+
+  userIdentities UserIdentity[]
+
+  //
+  // db table
+  //
+
+  //
+  // indexes
+  //
+
+  @@index([org_id])
+  @@index([email])
+  @@map("users")
+}
+
+//
+// ======================================================
+// WORKSPACES
+// ======================================================
+//
+
+model Workspace {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+
+  org_id String @db.Uuid
+
+  organization Organization @relation(fields: [org_id], references: [id], onDelete: Cascade)
+
+  name String @db.VarChar(255)
+
+  slug String @db.VarChar(100)
+
+  description String?
+
+  metadata Json @default(dbgenerated("'{}'::jsonb"))
+
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+
+  updated_at DateTime @updatedAt @db.Timestamptz(6)
+
+  //
+  // relations
+  //
+
+  userRoleAssignments UserRoleAssignment[]
+
+  serviceAccountRoleAssignments ServiceAccountRoleAssignment[]
+
+  //
+  // db table
+  //
+
+  //
+  // indexes
+  //
+
+  @@unique([org_id, slug])
+  @@index([org_id])
+  @@map("workspaces")
+}
+
+//
+// ======================================================
+// ORG MEMBERSHIPS
+// ======================================================
+//
+
+model OrgMembership {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+
+  org_id String @db.Uuid
+
+  organization Organization @relation(fields: [org_id], references: [id], onDelete: Cascade)
+
+  user_id String @db.Uuid
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  org_unit_id String? @db.Uuid
+
+  orgUnit OrgUnit? @relation(fields: [org_unit_id], references: [id], onDelete: Cascade)
+
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+
+  @@unique([org_id, user_id])
+  @@index([org_id])
+  @@index([user_id])
+  @@map("org_memberships")
+}
+
+//
+// ======================================================
+// ROLES
+// ======================================================
+//
+
+model Role {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+
+  org_id String? @db.Uuid
+
+  organization Organization? @relation(fields: [org_id], references: [id], onDelete: Cascade)
+
+  name String @db.VarChar(100)
+
+  slug String @db.VarChar(100)
+
+  description String?
+
+  is_system Boolean @default(false)
+
+  is_default Boolean @default(false)
+
+  scope RoleScope @default(organization)
+
+  max_scope_tier Int?
+
+  metadata Json @default(dbgenerated("'{}'::jsonb"))
+
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+
+  updated_at DateTime @updatedAt @db.Timestamptz(6)
+
+  //
+  // relations
+  //
+
+  rolePermissions RolePermission[]
+
+  userRoleAssignments UserRoleAssignment[]
+
+  serviceAccountRoleAssignments ServiceAccountRoleAssignment[]
+
+  //
+  // db table
+  //
+
+  //
+  // indexes
+  //
+
+  @@unique([org_id, slug])
+  @@index([org_id], map: "idx_roles_org_id")
+  @@index([scope], map: "idx_roles_scope")
+  @@map("roles")
+}
+
+//
+// ======================================================
+// PERMISSIONS
+// ======================================================
+//
+
+model Permission {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+
+  org_id String? @db.Uuid
+
+  organization Organization? @relation(fields: [org_id], references: [id], onDelete: Cascade)
+
+  key String @unique @db.VarChar(150)
+
+  name String @db.VarChar(255)
+
+  resource String @db.VarChar(100)
+
+  action String @db.VarChar(100)
+
+  category String? @db.VarChar(100)
+
+  description String?
+
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+
+  //
+  // relations
+  //
+
+  rolePermissions RolePermission[]
+
+  //
+  // db table
+  //
+
+  //
+  // indexes
+  //
+
+  @@index([org_id])
+  @@map("permissions")
+}
+
+//
+// ======================================================
+// ROLE PERMISSIONS
+// ======================================================
+//
+
+model RolePermission {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+
+  role_id String @db.Uuid
+
+  role Role @relation(fields: [role_id], references: [id], onDelete: Cascade)
+
+  permission_id String @db.Uuid
+
+  permission Permission @relation(fields: [permission_id], references: [id], onDelete: Cascade)
+
+  conditions Json?
+
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+
+  @@unique([role_id, permission_id], name: "role_id_permission_id")
+  @@index([role_id], map: "idx_role_permissions_role_id")
+  @@map("role_permissions")
+}
+
+//
+// ======================================================
+// USER ROLE ASSIGNMENTS
+// ======================================================
+//
+
+model UserRoleAssignment {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+
+  org_id String? @db.Uuid
+
+  organization Organization? @relation(fields: [org_id], references: [id], onDelete: Cascade)
+
+  user_id String @db.Uuid
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  role_id String @db.Uuid
+
+  role Role @relation(fields: [role_id], references: [id], onDelete: Cascade)
+
+  workspace_id String? @db.Uuid
+
+  workspace Workspace? @relation(fields: [workspace_id], references: [id], onDelete: Cascade)
+
+  granted_at DateTime @default(now()) @db.Timestamptz(6)
+
+  expires_at DateTime? @db.Timestamptz(6)
+
+  is_active Boolean @default(true)
+
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+
+  @@unique([org_id, user_id, role_id, workspace_id])
+  @@index([user_id, org_id], map: "idx_user_role_assignments_user_org")
+  @@index([workspace_id], map: "idx_user_role_assignments_workspace")
+  @@map("user_role_assignments")
+}
+
+//
+// ======================================================
+// ENUMS
+// ======================================================
+//
+
+enum PolicyType {
+  system
+  managed
+  custom
+}
+
+enum PolicyEffectDefault {
+  allow
+  deny
+}
+
+enum PrincipalType {
+  user
+  role
+  service_account
+  org_unit
+}
+
+enum AttributeEntityType {
+  user
+  resource
+  environment
+}
+
+enum AttributeDataType {
+  string
+  number
+  boolean
+  string_array
+  date
+}
+
+//
+// ======================================================
+// POLICIES
+// ======================================================
+//
+
+model Policy {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+
+  org_id String? @db.Uuid
+
+  organization Organization? @relation(fields: [org_id], references: [id], onDelete: Cascade)
+
+  name String @db.VarChar(255)
+
+  slug String @db.VarChar(100)
+
+  scope String? @default("global")
+
+  description String?
+
+  policy_type PolicyType @default(custom)
+
+  effect_default PolicyEffectDefault @default(deny)
+
+  //
+  // AWS IAM style policy JSON
+  //
+
+  policy_document Json
+
+  actions     Json
+  resources   Json
+  conditions  Json?
+
+  priority    Int      @default(100)
+
+  version Int @default(1)
+
+  is_active Boolean @default(true)
+
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+
+  updated_at DateTime @updatedAt @db.Timestamptz(6)
+
+  //
+  // relations
+  //
+
+  policyAttachments PolicyAttachment[]
+
+  permissionBoundaries PermissionBoundary[]
+
+  //
+  // db table
+  //
+
+  //
+  // indexes
+  //
+
+  @@unique([org_id, slug])
+  @@index([org_id], map: "idx_policies_org_id")
+  @@index([policy_type], map: "idx_policies_type")
+  @@map("policies")
+}
+
+//
+// ======================================================
+// POLICY ATTACHMENTS
+// ======================================================
+//
+
+model PolicyAttachment {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+
+  policy_id String @db.Uuid
+
+  policy Policy @relation(fields: [policy_id], references: [id], onDelete: Cascade)
+
+  principal_type PrincipalType
+
+  principal_id String @db.Uuid
+
+  org_id String @db.Uuid
+
+  organization Organization @relation(fields: [org_id], references: [id], onDelete: Cascade)
+
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+
+  //
+  // db table
+  //
+
+  //
+  // indexes
+  //
+
+  @@unique([policy_id, principal_type, principal_id])
+  @@index([principal_type, principal_id], map: "idx_policy_attachments_principal")
+  @@index([org_id], map: "idx_policy_attachments_org")
+  @@map("policy_attachments")
+}
+
+//
+// ======================================================
+// ATTRIBUTE DEFINITIONS
+// ======================================================
+//
+
+model AttributeDefinition {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+
+  org_id String? @db.Uuid
+
+  organization Organization? @relation(fields: [org_id], references: [id], onDelete: Cascade)
+
+  attribute_key String @db.VarChar(100)
+
+  entity_type AttributeEntityType
+
+  data_type AttributeDataType
+
+  display_name String @db.VarChar(255)
+
+  description String?
+
+  allowed_values Json?
+
+  is_required Boolean @default(false)
+
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+
+  //
+  // db table
+  //
+
+  //
+  // indexes
+  //
+
+  @@unique([org_id, attribute_key])
+  @@map("attribute_definitions")
+}
+
+//
+// ======================================================
+// PERMISSION BOUNDARIES
+// ======================================================
+//
+
+model PermissionBoundary {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+
+  org_id String @db.Uuid
+
+  organization Organization @relation(fields: [org_id], references: [id], onDelete: Cascade)
+
+  name String @db.VarChar(255)
+
+  description String?
+
+  policy_id String @db.Uuid
+
+  policy Policy @relation(fields: [policy_id], references: [id])
+
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+
+  //
+  // relations
+  //
+
+  userPermissionBoundaries UserPermissionBoundary[]
+
+  //
+  // db table
+  //
+
+  //
+  // indexes
+  //
+
+  @@unique([org_id, name])
+  @@map("permission_boundaries")
+}
+
+//
+// ======================================================
+// USER PERMISSION BOUNDARIES
+// ======================================================
+//
+
+model UserPermissionBoundary {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+
+  org_id String @db.Uuid
+
+  organization Organization @relation(fields: [org_id], references: [id], onDelete: Cascade)
+
+  user_id String @db.Uuid
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  boundary_id String @db.Uuid
+
+  boundary PermissionBoundary @relation(fields: [boundary_id], references: [id], onDelete: Cascade)
+
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+
+  //
+  // db table
+  //
+
+  //
+  // indexes
+  //
+
+  @@unique([org_id, user_id, boundary_id])
+  @@map("user_permission_boundaries")
+}
+
+enum IdentityProviderType {
+  email_password
+  google
+  microsoft
+  okta
+  auth0
+  saml
+  oidc
+}
+
+enum AuditEventType {
+  auth
+  authorization
+  policy
+  role
+  user
+  api_key
+  service_account
+  system
+}
+
+//
+// ======================================================
+// SERVICE ACCOUNTS
+// ======================================================
+//
+
+model ServiceAccount {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+
+  org_id String @db.Uuid
+
+  organization Organization @relation(fields: [org_id], references: [id], onDelete: Cascade)
+
+  name String @db.VarChar(255)
+
+  slug String @db.VarChar(100)
+
+  description String?
+
+  client_id String @unique @db.VarChar(255)
+
+  client_secret_hash String
+
+  is_active Boolean @default(true)
+
+  metadata Json @default(dbgenerated("'{}'::jsonb"))
+
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+
+  updated_at DateTime @updatedAt @db.Timestamptz(6)
+
+  //
+  // relations
+  //
+
+  roleAssignments ServiceAccountRoleAssignment[]
+
+  apiKeys ApiKey[]
+
+  //
+  // db table
+  //
+
+  //
+  // indexes
+  //
+
+  @@unique([org_id, slug])
+  @@index([org_id])
+  @@index([client_id])
+  @@map("service_accounts")
+}
+
+//
+// ======================================================
+// SERVICE ACCOUNT ROLE ASSIGNMENTS
+// ======================================================
+//
+
+model ServiceAccountRoleAssignment {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+
+  org_id String @db.Uuid
+
+  organization Organization @relation(fields: [org_id], references: [id], onDelete: Cascade)
+
+  service_account_id String @db.Uuid
+
+  serviceAccount ServiceAccount @relation(fields: [service_account_id], references: [id], onDelete: Cascade)
+
+  role_id String @db.Uuid
+
+  role Role @relation(fields: [role_id], references: [id], onDelete: Cascade)
+
+  workspace_id String? @db.Uuid
+
+  workspace Workspace? @relation(fields: [workspace_id], references: [id], onDelete: Cascade)
+
+  granted_at DateTime @default(now()) @db.Timestamptz(6)
+
+  expires_at DateTime? @db.Timestamptz(6)
+
+  is_active Boolean @default(true)
+
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+
+  //
+  // db table
+  //
+
+  //
+  // indexes
+  //
+
+  @@unique([org_id, service_account_id, role_id, workspace_id])
+  @@index([service_account_id])
+  @@index([role_id])
+  @@map("service_account_role_assignments")
+}
+
+//
+// ======================================================
+// SESSIONS
+// ======================================================
+//
+
+model Session {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+
+  org_id String? @db.Uuid
+
+  organization Organization? @relation(fields: [org_id], references: [id], onDelete: Cascade)
+
+  user_id String @db.Uuid
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  refresh_token_hash String
+
+  ip_address String? @db.VarChar(100)
+
+  user_agent String?
+
+  expires_at DateTime @db.Timestamptz(6)
+
+  revoked_at DateTime? @db.Timestamptz(6)
+
+  last_used_at DateTime? @db.Timestamptz(6)
+
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+
+  //
+  // relations
+  //
+
+  refreshTokens RefreshToken[]
+
+  //
+  // db table
+  //
+
+  //
+  // indexes
+  //
+
+  @@index([user_id])
+  @@index([org_id])
+  @@index([expires_at])
+  @@map("sessions")
+}
+
+//
+// ======================================================
+// REFRESH TOKENS
+// ======================================================
+//
+
+model RefreshToken {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+
+  session_id String @db.Uuid
+
+  session Session @relation(fields: [session_id], references: [id], onDelete: Cascade)
+
+  token_hash String
+
+  expires_at DateTime @db.Timestamptz(6)
+
+  revoked_at DateTime? @db.Timestamptz(6)
+
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+
+  //
+  // db table
+  //
+
+  //
+  // indexes
+  //
+
+  @@index([session_id])
+  @@index([expires_at])
+  @@map("refresh_tokens")
+}
+
+//
+// ======================================================
+// AUDIT LOGS
+// ======================================================
+//
+
+model AuditLog {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+
+  org_id String? @db.Uuid
+
+  organization Organization? @relation(fields: [org_id], references: [id], onDelete: Cascade)
+
+  actor_user_id String? @db.Uuid
+
+  actorUser User? @relation(fields: [actor_user_id], references: [id], onDelete: SetNull)
+
+  event_type AuditEventType
+
+  action String @db.VarChar(255)
+
+  resource_type String? @db.VarChar(100)
+
+  resource_id String? @db.VarChar(255)
+
+  ip_address String? @db.VarChar(100)
+
+  user_agent String?
+
+  metadata Json @default(dbgenerated("'{}'::jsonb"))
+
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+
+  //
+  // db table
+  //
+
+  //
+  // indexes
+  //
+
+  @@index([org_id])
+  @@index([actor_user_id])
+  @@index([event_type])
+  @@index([created_at])
+  @@map("audit_logs")
+}
+
+//
+// ======================================================
+// API KEYS
+// ======================================================
+//
+
+model ApiKey {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+
+  org_id String @db.Uuid
+
+  organization Organization @relation(fields: [org_id], references: [id], onDelete: Cascade)
+
+  user_id String? @db.Uuid
+
+  user User? @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  service_account_id String? @db.Uuid
+
+  serviceAccount ServiceAccount? @relation(fields: [service_account_id], references: [id], onDelete: Cascade)
+
+  name String @db.VarChar(255)
+
+  key_prefix String @db.VarChar(20)
+
+  key_hash String
+
+  expires_at DateTime? @db.Timestamptz(6)
+
+  last_used_at DateTime? @db.Timestamptz(6)
+
+  revoked_at DateTime? @db.Timestamptz(6)
+
+  metadata Json @default(dbgenerated("'{}'::jsonb"))
+
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+
+  //
+  // db table
+  //
+
+  //
+  // indexes
+  //
+
+  @@index([org_id])
+  @@index([user_id])
+  @@index([service_account_id])
+  @@map("api_keys")
+}
+
+//
+// ======================================================
+// IDENTITY PROVIDERS
+// ======================================================
+//
+
+model IdentityProvider {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+
+  org_id String? @db.Uuid
+
+  organization Organization? @relation(fields: [org_id], references: [id], onDelete: Cascade)
+
+  provider_type IdentityProviderType
+
+  name String @db.VarChar(255)
+
+  client_id String?
+
+  client_secret_encrypted String?
+
+  issuer_url String?
+
+  authorization_url String?
+
+  token_url String?
+
+  userinfo_url String?
+
+  jwks_url String?
+
+  metadata Json @default(dbgenerated("'{}'::jsonb"))
+
+  is_active Boolean @default(true)
+
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+
+  updated_at DateTime @updatedAt @db.Timestamptz(6)
+
+  //
+  // relations
+  //
+
+  userIdentities UserIdentity[]
+
+  //
+  // db table
+  //
+
+  //
+  // indexes
+  //
+
+  @@index([org_id])
+  @@map("identity_providers")
+}
+
+//
+// ======================================================
+// USER IDENTITIES
+// ======================================================
+//
+
+model UserIdentity {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+
+  user_id String @db.Uuid
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  provider_id String @db.Uuid
+
+  provider IdentityProvider @relation(fields: [provider_id], references: [id], onDelete: Cascade)
+
+  provider_user_id String @db.VarChar(255)
+
+  access_token_encrypted String?
+
+  refresh_token_encrypted String?
+
+  expires_at DateTime? @db.Timestamptz(6)
+
+  metadata Json @default(dbgenerated("'{}'::jsonb"))
+
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+
+  //
+  // db table
+  //
+
+  //
+  // indexes
+  //
+
+  @@unique([provider_id, provider_user_id])
+  @@index([user_id])
+  @@map("user_identities")
+}
+
+//
+// ======================================================
+// Authorization Audit Log
+// ======================================================
+//
+
+model AuthorizationAuditLog {
+  id          String   @id @default(uuid())
+
+  org_id    String
+  user_id      String?
+
+  action      String
+  resource    String
+
+  allowed     Boolean
+
+  policyId    String?
+
+  reason      String?
+
+  metadata    Json?
+
+  createdAt   DateTime @default(now())
+
+  @@index([org_id])
+  @@index([user_id])
+  @@index([createdAt])
+
+  @@map("authorization_audit_logs")
+}
+

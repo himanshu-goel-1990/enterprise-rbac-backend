@@ -1,0 +1,152 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  PENDING
+  SUSPENDED
+}
+
+enum TokenType {
+  REFRESH
+}
+
+enum PermissionAction {
+  MANAGE
+  CREATE
+  READ
+  UPDATE
+  DELETE
+}
+
+enum OrganizationStatus {
+  ACTIVE
+  INACTIVE
+  PENDING
+  SUSPENDED
+}
+
+enum RoleStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum PerStatus {
+  ACTIVE
+  INACTIVE
+}
+
+model Organization {
+  id                String             @id @default(uuid())
+  name              String
+  slug              String             @unique
+  status            OrganizationStatus @default(ACTIVE)
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  users             User[]
+  organizationRoles OrganizationRole[]
+}
+
+model Role {
+  id              String             @id @default(uuid())
+  name            String
+  slug            String
+  description     String?
+  status          RoleStatus         @default(ACTIVE)
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+  rolePermissions RolePermission[]
+  organizations   OrganizationRole[]
+  userRoles       UserRole[]
+  @@unique([name])
+}
+
+model OrganizationRole {
+  id             String       @id @default(uuid())
+  roleId         String
+  organizationId String
+  role           Role         @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, organizationId])
+}
+
+model User {
+  id             String         @id @default(uuid())
+  organizationId String
+  organization   Organization   @relation(fields: [organizationId], references: [id])
+  name           String
+  email          String         @unique
+  password       String
+  title          String?
+  status         UserStatus     @default(ACTIVE)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  refreshTokens  RefreshToken[]
+  userRoles      UserRole[]
+}
+
+model RefreshToken {
+  id        String    @id @default(uuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String    @unique
+  expiresAt DateTime
+  revoked   Boolean   @default(false)
+  type      TokenType @default(REFRESH)
+  createdAt DateTime  @default(now())
+}
+
+model PermissionGroup {
+  id          String       @id @default(cuid())
+  name        String
+  key         String       @unique
+  description String?
+  permissions Permission[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  @@map("permission_groups")
+}
+
+model Permission {
+  id              String           @id @default(uuid())
+  action          PermissionAction
+  status          PerStatus         @default(ACTIVE)
+  description     String?
+  permissionKey   String?         
+  groupId     String
+  group       PermissionGroup   @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  groupName   String?
+  rolePermissions RolePermission[]
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  @@index([groupId])
+  @@map("permissions")
+}
+
+model RolePermission {
+  id           String     @id @default(uuid())
+  roleId       String
+  permissionId String
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, permissionId])
+}
+
+model UserRole {
+  id     String @id @default(uuid())
+  userId String
+  roleId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role   Role   @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roleId])
+}
