@@ -10,10 +10,13 @@ const {
   createRefreshToken,
 } = require("../repositories/auth.repository");
 
+const { applyOrgTenantScope } = require("../middlewares/tenantScope");
 
 // list all organizations
 const listOrganization = asyncHandler(async (req, res) => {
-  const orgs = await prisma.organization.findMany();
+  const orgs = await prisma.organization.findMany({
+    where: applyOrgTenantScope({}, req),
+  });
   res.status(201).json({
     success: true,
     data: orgs,

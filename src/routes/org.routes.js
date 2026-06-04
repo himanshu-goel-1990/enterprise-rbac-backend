@@ -11,6 +11,16 @@ const permissionMiddleware = require(
 );
 
 const {
+  buildArn,
+} = require(
+  "../utils/resourceArn"
+);
+
+const abacMiddleware = require(
+  "../middlewares/abac.middleware"
+);
+
+const {
   listOrganization,
   createNewOrganization,
   editOrganization,
@@ -22,6 +32,15 @@ router.get(
   "/organizations/list",
   authMiddleware,
   permissionMiddleware("organizations.read"),
+  abacMiddleware(
+    "organizations.read",
+    (req) =>
+      buildArn({
+        org_id: req.auth.org_id,
+        resourceType: "organizations",
+        resourceId: "*",
+      })
+  ),
   listOrganization
 );
 

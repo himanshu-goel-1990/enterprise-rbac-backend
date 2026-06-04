@@ -1,7 +1,4 @@
-
-const applyTenantScope = (where = {}, req) => {
-    const scope = req.auth?.scope;
-
+const applyUserTenantScope = (where = {}, req) => {
     if (req.auth.roles.includes('super_admin')) {
         return where;
     }
@@ -12,6 +9,18 @@ const applyTenantScope = (where = {}, req) => {
     };
 };
 
+const applyOrgTenantScope = (where = {}, req) => {
+    if (req.auth.roles.includes('super_admin')) {
+        return where;
+    }
+
+    return {
+        ...where,
+        id: req.auth.org_id,
+    };
+};
+
 module.exports = {
-    applyTenantScope,
+    applyUserTenantScope,
+    applyOrgTenantScope
 };

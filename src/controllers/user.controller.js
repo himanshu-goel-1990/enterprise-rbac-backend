@@ -10,17 +10,13 @@ const {
   createRefreshToken,
 } = require("../repositories/auth.repository");
 
-const {
-  hashPassword,
-  comparePassword,
-} = require("../utils/password");
-const { applyTenantScope } = require("../middlewares/tenantScope");
+const { hashPassword, comparePassword } = require("../utils/password");
+const { applyUserTenantScope } = require("../middlewares/tenantScope");
 
 const listUsersController = asyncHandler(async (req, res) => {
-
   const users = await prisma.user.findMany({
-    where: applyTenantScope({}, req),
-     include: {
+    where: applyUserTenantScope({}, req),
+    include: {
       organization: {
         select: {
           id: true,
@@ -29,7 +25,6 @@ const listUsersController = asyncHandler(async (req, res) => {
       },
     },
   });
- 
 
   res.status(201).json({
     success: true,
@@ -45,15 +40,13 @@ const createUsersController = asyncHandler(async (req, res) => {
     throw new ApiError(409, "Email already exists");
   }
 
-  const hashedPassword = await hashPassword(
-    payload.password
-  );
+  const hashedPassword = await hashPassword(payload.password);
 
   const user = await createUser({
     organization: {
       connect: {
-        id: payload.org_id
-      }
+        id: payload.org_id,
+      },
     },
     first_name: payload.first_name,
     last_name: payload.last_name,
@@ -85,7 +78,18 @@ const editUsersController = asyncHandler(async (req, res) => {
       first_name: true,
       last_name: true,
       email: true,
-    }
+      userRoleAssignments: {
+        select: {
+          role: {
+            select: {
+              id: true,
+              name: true,
+              slug: true,
+            },
+          },
+        },
+      },
+    },
   });
 
   if (!user) {
@@ -105,7 +109,7 @@ const updateUsersController = asyncHandler(async (req, res) => {
   const user = await prisma.user.findFirst({
     where: {
       id: userId,
-    }
+    },
   });
 
   if (!user) {
@@ -123,7 +127,7 @@ const updateUsersController = asyncHandler(async (req, res) => {
     },
   });
 
-  if(payload.roleIds && Array.isArray(payload.roleIds)) {
+  if (payload.roleIds && Array.isArray(payload.roleIds)) {
     // Handle role updates
     await prisma.userRoleAssignment.deleteMany({
       where: {
@@ -139,7 +143,6 @@ const updateUsersController = asyncHandler(async (req, res) => {
     await prisma.userRoleAssignment.createMany({
       data: roleAssignments,
     });
-
   }
 
   res.status(201).json({
@@ -147,7 +150,6 @@ const updateUsersController = asyncHandler(async (req, res) => {
     message: "User updated successfully",
   });
 });
-  
 
 module.exports = {
   listUsersController,
