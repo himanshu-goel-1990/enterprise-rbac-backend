@@ -4,11 +4,16 @@ const ApiError = require("../utils/apiError");
 
 const {
   createOrganization,
-  findOrganizationBySlug,
-  findUserByEmail,
-  createUser,
-  createRefreshToken,
+
 } = require("../repositories/auth.repository");
+
+const {
+  assignToRoleService,
+  assignToUserService,
+  deleteToRoleService,
+  deleteToUserService
+} = require("../services/policy.service");
+
 
 // list all policies
 const listPolicyController = asyncHandler(async (req, res) => {
@@ -156,10 +161,50 @@ const deletePolicyController = async (req, res) => {
   });
 };
 
+const assignRolePolicyController = asyncHandler(async (req, res) => {
+  const result = await assignToRoleService(req.auth.org_id, req.body.role_id, req.body.policy_id);
+
+  res.status(200).json({
+    success: true,
+    data: result,
+  });
+});
+
+const assignUserPolicyController = asyncHandler(async (req, res) => {
+  const result = await assignToUserService(req.auth.org_id, req.body.user_id, req.body.policy_id);
+
+  res.status(200).json({
+    success: true,
+    data: result,
+  });
+});
+
+const deleteRolePolicyController = asyncHandler(async (req, res) => {
+  const result = await deleteToRoleService(req.params.id);
+
+  res.status(200).json({
+    success: true,
+    data: result,
+  });
+});
+
+const deleteUserPolicyController = asyncHandler(async (req, res) => {
+  const result = await deleteToUserService(req.params.policy_id);
+
+  res.status(200).json({
+    success: true,
+    data: result,
+  });
+});
+
 module.exports = {
   listPolicyController,
   createPolicyController,
   editPolicyController,
   updatePolicyController,
   deletePolicyController,
+  assignRolePolicyController,
+  assignUserPolicyController,
+  deleteRolePolicyController,
+  deleteUserPolicyController
 };

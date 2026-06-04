@@ -12,16 +12,9 @@ const ApiError = require("../utils/apiError");
 
 const prisma = require("../config/prisma");
 
+const { hashPassword, comparePassword } = require("../utils/password");
 
-const {
-  hashPassword,
-  comparePassword,
-} = require("../utils/password");
-
-const {
-  generateAccessToken,
-  generateRefreshToken,
-} = require("../utils/jwt");
+const { generateAccessToken, generateRefreshToken } = require("../utils/jwt");
 
 const { permissionService } = require("./permission.service.js");
 
@@ -46,16 +39,13 @@ const register = async (payload) => {
   //   });
   // }
 
-
-  const hashedPassword = await hashPassword(
-    payload.password
-  );
+  const hashedPassword = await hashPassword(payload.password);
 
   const user = await createUser({
     organization: {
       connect: {
-        id: payload.org_id
-      }
+        id: payload.org_id,
+      },
     },
     first_name: payload.first_name,
     last_name: payload.last_name,
@@ -82,9 +72,7 @@ const register = async (payload) => {
   await createRefreshToken({
     userId: user.id,
     token: refreshToken,
-    expiresAt: new Date(
-      Date.now() + 7 * 24 * 60 * 60 * 1000
-    ),
+    expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
   });
 
   delete user.password;
@@ -112,10 +100,7 @@ const login = async (req) => {
   }
 
   // validate password
-  const isPasswordValid = await comparePassword(
-    password,
-    user.password_hash
-  );
+  const isPasswordValid = await comparePassword(password, user.password_hash);
 
   // check if password is invalid, throw error
   if (!isPasswordValid) {
@@ -123,12 +108,22 @@ const login = async (req) => {
   }
 
   // resolve user permissions
-  const permissions = await permissionService.resolveUserPermissions({ userId: user.id, org_id: user.org_id, });
-  console.log(permissions)
-  const rolesData = await permissionService.getUserRoles({ userId: user.id, org_id: user.org_id, });
+  const permissions = await permissionService.resolveUserPermissions({
+    userId: user.id,
+    org_id: user.org_id,
+  });
+
+  const rolesData = await permissionService.getUserRoles({
+    userId: user.id,
+    org_id: user.org_id,
+  });
 
   const roles = rolesData.map((a) => a.role.slug);
- 
+
+  
+
+  const roleIds = rolesData.map((r) => r.role_id);
+
 
   // create token expiry date 7 days from now
   const TokenExpiryDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
@@ -145,25 +140,71 @@ const login = async (req) => {
     },
   });
 
-  const policy =
-    await prisma.policy.findFirst({
-      where: {
-        OR: [
-          {
-            org_id: user.org_id,
-          }
-        ],
-        is_active: true,
+  // const policy =
+  //   await prisma.policy.findFirst({
+  //     where: {
+  //       OR: [
+  //         {
+  //           org_id: user.org_id,
+  //         }
+  //       ],
+  //       is_active: true,
+  //     },
+  //   });
+
+  const userAssignments = await prisma.policyAssignment.findMany({
+    where: {
+      org_id: user.org_id,
+      user_id: user.id,
+    },
+    include: {
+      policy: true,
+    },
+  });
+
+  const roleAssignments = await prisma.policyAssignment.findMany({
+    where: {
+      org_id: user.org_id,
+      role_id: {
+        in: roleIds,
       },
-    });
+    },
+    include: {
+      policy: true,
+    },
+  });
+
+  const policyMap = new Map();
+
+  [
+    ...userAssignments,
+    ...roleAssignments,
+  ].forEach((assignment) => {
+    policyMap.set(
+      assignment.policy.id,
+      assignment.policy
+    );
+  });
+
+  const policies = [...policyMap.values()];
+
+  const jwtPolicies = policies.map((p) => ({
+    id: p.id,
+    name: p.name,
+    effect_default: p.effect_default,
+    actions: p.actions,
+    resources: p.resources,
+    conditions: p.conditions,
+  }));
 
   const jwtPayload = {
     user_id: user.id,
     organization_id: user.org_id,
     session_id: session.id,
     roles,
-    scope: policy ? policy.scope : null,
-    permissions
+    roleIds,
+    permissions,
+    policies: jwtPolicies,
   };
 
   // create access token
@@ -214,7 +255,8 @@ const login = async (req) => {
     user,
     accessToken,
     refreshToken,
-    permissions
+    permissions,
+    roles,
   };
 };
 

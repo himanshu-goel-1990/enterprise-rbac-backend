@@ -16,7 +16,6 @@ const authMiddleware = async (req, res, next) => {
 
     const decoded = verifyAccessToken(token);
 
-    // console.log(decoded);
 
     if (!decoded) {
       throw new ApiError(401, "Token is expired or invalid");
@@ -89,7 +88,9 @@ const authMiddleware = async (req, res, next) => {
       session_id: decoded.session_id,
       permissions: decoded.permissions || [],
       roles: decoded.roles || [],
+      roleIds: decoded.roleIds || [],
       scope: decoded.scope || null,
+      policies: decoded.policies || null,
     };
 
     await prisma.session.update({

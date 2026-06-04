@@ -14,7 +14,6 @@ const {
   createRoleController,
   createPermissionController,
   assignPermissionController,
-  assignRoleController,
   listRoleController,
   changeStatusRoleController,
   editRoleController,
@@ -111,8 +110,6 @@ router.post(
   createPermissionController
 );
 
-
-
 router.post(
   "/assign-permission",
   authMiddleware,
@@ -123,15 +120,6 @@ router.post(
   assignPermissionController
 );
 
-router.post(
-  "/assign-role",
-  authMiddleware,
-  permissionMiddleware(
-    "manage",
-    "User"
-  ),
-  assignRoleController
-);
 
 router.get(
   "/groups/list",

@@ -1,49 +1,116 @@
-const { matchArn } = require("../../utils/arnMatcher");
 const ConditionEvaluator = require("./conditionEvaluator");
+const { matchArn } = require("../../utils/arnMatcher");
 
 class PolicyEngine {
   static evaluate({
     action,
     resource,
-    context,
-    policies,
+    context = {},
+    policies = [],
   }) {
-    let decision = false;
+    if (!policies.length) {
+      return {
+        allowed: false,
+        policyId: null,
+        reason: "No policies available",
+      };
+    }
 
-    const sortedPolicies = policies.sort(
+    // lowest priority value wins
+    const orderedPolicies = [...policies].sort(
       (a, b) => a.priority - b.priority
     );
 
-    for (const policy of sortedPolicies) {
-      const actionMatch =
-        policy.actions.includes(action) ||
-        policy.actions.includes("*");
+    let matchedAllow = null;
+    
 
-      if (!actionMatch) continue;
+    for (const policy of orderedPolicies) {
+      // skip inactive
+      if (!policy.is_active) {
+        continue;
+      }
 
-      const resourceMatch =
-        policy.resources.some((r) =>
-          matchArn(r, resource)
+      // -------------------------
+      // ACTION MATCH
+      // -------------------------
+
+      const actions = Array.isArray(policy.actions)
+        ? policy.actions
+        : [];
+
+      const actionMatched =
+        actions.includes("*") ||
+        actions.includes(action);
+
+      if (!actionMatched) {
+        continue;
+      }
+
+      // -------------------------
+      // RESOURCE MATCH
+      // -------------------------
+
+      const resources = Array.isArray(policy.resources)
+        ? policy.resources
+        : [];
+
+      const resourceMatched =
+        resources.some((pattern) =>
+          matchArn(pattern, resource)
         );
 
-      if (!resourceMatch) continue;
+      if (!resourceMatched) {
+        continue;
+      }
 
-      const conditionMatch =
+      // -------------------------
+      // CONDITIONS MATCH
+      // -------------------------
+
+      const conditionMatched =
         ConditionEvaluator.evaluate(
           policy.conditions,
           context
         );
 
-      if (!conditionMatch) continue;
-
-      if (policy.effect_default === "deny") {
-        return false;
+      if (!conditionMatched) {
+        continue;
       }
 
-      decision = true;
+      // -------------------------
+      // DENY ALWAYS WINS
+      // -------------------------
+
+      if (policy.effect_default === "deny") {
+        return {
+          allowed: false,
+          policyId: policy.id,
+          reason: `Denied by policy: ${policy.name}`,
+        };
+      }
+
+      // -------------------------
+      // ALLOW
+      // -------------------------
+
+      if (policy.effect_default === "allow") {
+        matchedAllow = {
+          allowed: true,
+          policyId: policy.id,
+          reason: `Allowed by policy: ${policy.name}`,
+        };
+      }
+    }    
+
+    if (matchedAllow) {
+      return matchedAllow;
     }
 
-    return {decision};
+    return {
+      allowed: false,
+      policyId: null,
+      reason: "No matching policy found",
+    };
   }
 }
 

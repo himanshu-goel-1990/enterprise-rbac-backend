@@ -1,42 +1,43 @@
-const AuthorizationService =
-    require("../modules/authorization/authorization.service");
+const AuthorizationService = require("../modules/authorization/authorization.service");
 
-const AuditService =
-    require("../modules/authorization/audit.service");
+const AuditService = require("../modules/authorization/audit.service");
 
-module.exports =
-    (action, resourceBuilder) =>
-        async (req, res, next) => {
-            const resource =
-                resourceBuilder(req);
+module.exports = (action, resourceBuilder) => async (req, res, next) => {
+  // SUPER ADMIN BYPASS
+  if (req.auth.roles.includes('super_admin')) {
+    return next();
+  }
 
-            const allowed =
-                await AuthorizationService.authorize({
-                    action,
-                    resource,
-                    auth: req.auth,
-                });
+  const resource = resourceBuilder(req);
 
-            // await AuditService.log({
-            //     org_id: req.auth.org_id,
-            //     user_id: req.auth.user_id,
+  const decision = await AuthorizationService.authorize({
+    action,
+    resource,
+    auth: req.auth,
+  });
 
-            //     action,
-            //     resource,
+  console.log("decision", decision);
 
-            //     allowed: allowed.decision,
+  if (!decision.allowed) {
+    return res.status(403).json({
+      success: false,
+      message: decision.reason,
+    });
+  }
 
-            //     policyId: allowed.policies[0]?.id,
+  // await AuditService.log({
+  //     org_id: req.auth.org_id,
+  //     user_id: req.auth.user_id,
 
-            //     reason: allowed.policies[0]?.reason,
-            // });
+  //     action,
+  //     resource,
 
-            if (!allowed.decision) {
-                return res.status(403).json({
-                    success: false,
-                    message: "Access denied",
-                });
-            }
+  //     allowed: allowed.decision,
 
-            next();
-        };
+  //     policyId: allowed.policies[0]?.id,
+
+  //     reason: allowed.policies[0]?.reason,
+  // });
+
+  next();
+};

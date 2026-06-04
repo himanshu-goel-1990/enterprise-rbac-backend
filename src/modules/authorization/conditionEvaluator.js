@@ -1,9 +1,19 @@
 class ConditionEvaluator {
-  static evaluate(conditions, context) {
-    if (!conditions) return true;
+  static evaluate(
+    conditions,
+    context
+  ) {
+    if (
+      !conditions ||
+      Object.keys(conditions).length === 0
+    ) {
+      return true;
+    }
 
-    for (const key of Object.keys(conditions)) {
-      if (context[key] !== conditions[key]) {
+    for (const [key, value] of Object.entries(
+      conditions
+    )) {
+      if (context[key] !== value) {
         return false;
       }
     }

@@ -6,7 +6,8 @@ const {
   createRoleService,
   createPermissionService,
   assignPermissionService,
-  assignRoleService,
+  assignToRoleService,
+  assignToUserService
 } = require("../services/rbac.service");
 
 const {
@@ -300,14 +301,7 @@ const assignPermissionController = asyncHandler(async (req, res) => {
   });
 });
 
-const assignRoleController = asyncHandler(async (req, res) => {
-  const result = await assignRoleService(req.body.userId, req.body.roleId);
 
-  res.status(200).json({
-    success: true,
-    data: result,
-  });
-});
 
 const listGroupController = asyncHandler(async (req, res) => {
   const groups = await prisma.permissionGroup.findMany();
@@ -351,7 +345,6 @@ module.exports = {
   createRoleController,
   createPermissionController,
   assignPermissionController,
-  assignRoleController,
   listRoleController,
   changeStatusRoleController,
   editRoleController,

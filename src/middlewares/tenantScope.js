@@ -2,7 +2,7 @@
 const applyTenantScope = (where = {}, req) => {
     const scope = req.auth?.scope;
 
-    if (scope === 'global') {
+    if (req.auth.roles.includes('super_admin')) {
         return where;
     }
 

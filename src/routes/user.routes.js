@@ -40,7 +40,7 @@ router.get(
     (req) =>
       buildArn({
         org_id: req.auth.org_id,
-        resourceType: "user",
+        resourceType: "users",
         resourceId: "*",
       })
   ),

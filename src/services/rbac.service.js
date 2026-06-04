@@ -44,19 +44,9 @@ const assignPermissionService =
     );
   };
 
-const assignRoleService = async (
-  userId,
-  roleId
-) => {
-  return assignRoleToUser(
-    userId,
-    roleId
-  );
-};
 
 module.exports = {
   createRoleService,
   createPermissionService,
   assignPermissionService,
-  assignRoleService,
 };

@@ -1,5 +1,7 @@
+const prisma = require("../config/prisma");
+const ApiError = require("../utils/apiError");
+
 const {
-  createPolicy,
   findPermission,
   createPermission,
   assignPermissionToRole,
@@ -54,9 +56,82 @@ const assignRoleService = async (
   );
 };
 
+const assignToRoleService = async (
+    org_id,
+    role_id,
+    policy_id
+) => {
+    return prisma.policyAssignment.create({
+        data: {
+            org_id,
+            role_id,
+            policy_id
+        }
+    });
+};
+
+const assignToUserService = async (
+    org_id,
+    role_id,
+    policy_id
+) => {
+    return prisma.policyAssignment.create({
+        data: {
+            org_id,
+            role_id,
+            policy_id
+        }
+    });
+};
+
+const deleteToRoleService = async (id) => {
+  const result = await prisma.policyAssignment.findFirst({
+    where: {
+      id
+    },
+  });
+
+  if (!result) {
+    res.status(403).json({
+      success: false,
+      message: "Policy Assignment not found",
+    });
+  }
+
+  return prisma.policyAssignment.delete({
+      where: {
+          id
+      }
+  });
+};
+
+const deleteToUserService = async (id) => {
+  const result = await prisma.policyAssignment.findFirst({
+    where: {
+      id
+    },
+  });
+
+  if (!result) {
+    res.status(403).json({
+      success: false,
+      message: "Policy Assignment not found",
+    });
+  }
+
+  return prisma.policyAssignment.delete({
+      where: {
+          id
+      }
+  });
+};
+
 module.exports = {
-  createRoleService,
   createPermissionService,
   assignPermissionService,
   assignRoleService,
+  assignToRoleService,
+  assignToUserService,
+  deleteToRoleService,
+  deleteToUserService
 };

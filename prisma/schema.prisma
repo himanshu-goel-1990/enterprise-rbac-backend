@@ -104,6 +104,7 @@ model Organization {
   //
   // indexes
   //
+  policyAssignments PolicyAssignment[]
 
   @@index([slug], map: "idx_organizations_slug")
   @@index([status], map: "idx_organizations_status")
@@ -1166,25 +1167,25 @@ model AuthorizationAuditLog {
 //
 
 model PolicyAssignment {
-  id          String   @id @default(uuid())
+  id String @id @default(uuid())
 
-  policy_id String @db.Uuid
+  org_id    String  @db.Uuid
+  policy_id String  @db.Uuid
   role_id   String? @db.Uuid
   user_id   String? @db.Uuid
-  
-  created_at  DateTime @default(now())
-  updated_at  DateTime @updatedAt
 
-  role Role? @relation(fields: [role_id], references: [id], onDelete: Cascade)
-  user User? @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  policy Policy? @relation(fields: [policy_id], references: [id], onDelete: Cascade)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
 
-  @@index([policy_id])
-  @@index([role_id])
-  @@index([user_id])
+  organization Organization? @relation(fields: [org_id], references: [id], onDelete: Cascade)
+  role         Role?         @relation(fields: [role_id], references: [id], onDelete: Cascade)
+  user         User?         @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  policy       Policy?       @relation(fields: [policy_id], references: [id], onDelete: Cascade)
 
   @@unique([policy_id, role_id])
   @@unique([policy_id, user_id])
-
+  @@index([policy_id])
+  @@index([role_id])
+  @@index([user_id])
   @@map("policy_assignments")
 }
