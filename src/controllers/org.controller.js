@@ -22,14 +22,13 @@ const listOrganization = asyncHandler(async (req, res) => {
 
 // create new organization
 const createNewOrganization = asyncHandler(async (req, res) => {
-  const { name, status, ownerEmail, ownerPassword } = req.body;
+  const { name, slug, display_name, domain, domain_verified, status, metadata, settings } = req.body;
 
   //   // check if user exist
   //   const existingUser = await findUserByEmail(email);
   //   if (existingUser) {
   //     throw new ApiError(409, "Email already exists");
   //   }
-  const slug = name.toLowerCase().replace(/\s+/g, "-");
 
   // check if org exist
   const organizationExist = await findOrganizationBySlug(slug);
@@ -42,9 +41,13 @@ const createNewOrganization = asyncHandler(async (req, res) => {
   if (!organizationExist) {
     organization = await createOrganization({
       name,
+      display_name,
+      domain,
+      domain_verified,
       slug,
       status,
-      settings: {
+      metadata,
+      settings: settings || {
         theme: "light",
       },
     });
@@ -92,15 +95,13 @@ const editOrganization = async (req, res) => {
 
 const updateOrganization = async (req, res) => {
   const { orgId } = req.params;
-  const { name, status } = req.body;
+  const { name, slug, display_name, domain, domain_verified, status, metadata, settings } = req.body;
 
   const result = await prisma.organization.findFirst({
     where: {
       id: orgId,
     },
   });
-
-    const slug = name.toLowerCase().replace(/\s+/g, "-");
 
 
   if (!result) {
@@ -115,9 +116,15 @@ const updateOrganization = async (req, res) => {
       id: orgId,
     },
     data: {
-      name: name,
+      name,
       slug,
-      status: status,
+      display_name,
+      domain,
+      domain_verified,
+      slug,
+      status,
+      metadata,
+      settings
     },
   });
 

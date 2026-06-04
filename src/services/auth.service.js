@@ -124,6 +124,7 @@ const login = async (req) => {
 
   // resolve user permissions
   const permissions = await permissionService.resolveUserPermissions({ userId: user.id, org_id: user.org_id, });
+  console.log(permissions)
   const rolesData = await permissionService.getUserRoles({ userId: user.id, org_id: user.org_id, });
 
   const roles = rolesData.map((a) => a.role.slug);
@@ -150,10 +151,7 @@ const login = async (req) => {
         OR: [
           {
             org_id: user.org_id,
-          },
-          {
-            org_id: null,
-          },
+          }
         ],
         is_active: true,
       },

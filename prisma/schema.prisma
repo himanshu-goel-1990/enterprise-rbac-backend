@@ -214,6 +214,7 @@ model User {
   //
   // indexes
   //
+  policyAssignments PolicyAssignment[]
 
   @@index([org_id])
   @@index([email])
@@ -345,6 +346,7 @@ model Role {
   //
   // indexes
   //
+  policyAssignments PolicyAssignment[]
 
   @@unique([org_id, slug])
   @@index([org_id], map: "idx_roles_org_id")
@@ -531,11 +533,11 @@ model Policy {
 
   policy_document Json
 
-  actions     Json
-  resources   Json
-  conditions  Json?
+  actions    Json
+  resources  Json
+  conditions Json?
 
-  priority    Int      @default(100)
+  priority Int @default(100)
 
   version Int @default(1)
 
@@ -560,6 +562,7 @@ model Policy {
   //
   // indexes
   //
+  policyAssignments PolicyAssignment[]
 
   @@unique([org_id, slug])
   @@index([org_id], map: "idx_policies_org_id")
@@ -1132,28 +1135,56 @@ model UserIdentity {
 //
 
 model AuthorizationAuditLog {
-  id          String   @id @default(uuid())
+  id String @id @default(uuid())
 
-  org_id    String
-  user_id      String?
+  org_id  String
+  user_id String?
 
-  action      String
-  resource    String
+  action   String
+  resource String
 
-  allowed     Boolean
+  allowed Boolean
 
-  policyId    String?
+  policyId String?
 
-  reason      String?
+  reason String?
 
-  metadata    Json?
+  metadata Json?
 
-  createdAt   DateTime @default(now())
+  createdAt DateTime @default(now())
 
   @@index([org_id])
   @@index([user_id])
   @@index([createdAt])
-
   @@map("authorization_audit_logs")
 }
 
+//
+// ======================================================
+// Policy Assignment Table
+// ======================================================
+//
+
+model PolicyAssignment {
+  id          String   @id @default(uuid())
+
+  policy_id String @db.Uuid
+  role_id   String? @db.Uuid
+  user_id   String? @db.Uuid
+  
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  role Role? @relation(fields: [role_id], references: [id], onDelete: Cascade)
+  user User? @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  policy Policy? @relation(fields: [policy_id], references: [id], onDelete: Cascade)
+
+  @@index([policy_id])
+  @@index([role_id])
+  @@index([user_id])
+
+  @@unique([policy_id, role_id])
+  @@unique([policy_id, user_id])
+
+  @@map("policy_assignments")
+}
