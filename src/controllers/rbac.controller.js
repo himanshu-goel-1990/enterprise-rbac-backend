@@ -198,22 +198,15 @@ const deleteRoleController = asyncHandler(async (req, res) => {
 });
 
 const createPermissionController = asyncHandler(async (req, res) => {
-  const { action, group, description } = req.body;
+  const { name, action, group, description } = req.body;
 
-  const grp = await prisma.permissionGroup.findUnique({
-    where: {
-      id: group,
-    },
-  });
 
-  if (!grp) {
-    throw new ApiError(401, "Group not found");
-  }
 
   const checkPerExist = await prisma.permission.findFirst({
     where: {
       action,
-      groupId: grp["id"],
+      category: group,
+      key: action+'.'+group
     },
   });
 
@@ -223,12 +216,12 @@ const createPermissionController = asyncHandler(async (req, res) => {
 
   const role = await prisma.permission.create({
     data: {
+      name,
       action,
-      status: "ACTIVE",
+      resource: group,
+      category: group,
       description,
-      groupId: grp["id"],
-      groupName: grp["key"],
-      permissionKey: `${grp["key"]}:${action}`,
+      key: action+'.'+group
     },
   });
 
@@ -254,6 +247,8 @@ const listPermissionGroupWiseController = asyncHandler(async (req, res) => {
       action: true,
       name: true,
       category: true,
+      key: true,
+      description: true
     },
     // orderBy: {
     //   category: 'asc',
@@ -269,6 +264,8 @@ const listPermissionGroupWiseController = asyncHandler(async (req, res) => {
       id: permission.id,
       name: permission.name,
       action: permission.action,
+      key: permission.key,
+      description: permission.description,
     });
 
     return acc;

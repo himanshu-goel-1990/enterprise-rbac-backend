@@ -56,6 +56,17 @@ const assignRoleService = async (
   );
 };
 
+const assignPolicyListService = async () => {
+    return prisma.policyAssignment.findMany({
+      include: {
+        policy: true,
+        user: true,
+        role: true,
+        organization: true
+      },
+    });
+}
+
 const assignToRoleService = async (
     org_id,
     role_id,
@@ -130,6 +141,7 @@ module.exports = {
   createPermissionService,
   assignPermissionService,
   assignRoleService,
+  assignPolicyListService,
   assignToRoleService,
   assignToUserService,
   deleteToRoleService,

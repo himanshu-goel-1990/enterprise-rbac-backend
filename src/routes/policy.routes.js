@@ -17,7 +17,8 @@ const {
   editPolicyController,
   updatePolicyController,
   deletePolicyController,
-  assignRolePolicyController,
+  assignPolicyListController,
+  addPolicyAssignController,
   assignUserPolicyController,
   deleteRolePolicyController,
   deleteUserPolicyController
@@ -96,25 +97,33 @@ router.delete(
   deletePolicyController
 );
 
-router.post(
-  "/policy-assignments/user",
-  validateUUID,
+router.get(
+  "/policy-assignments/list",
   authMiddleware,
   permissionMiddleware(
-    "policies.create",
+    "policies.read",
   ),
-  assignRolePolicyController
+  assignPolicyListController
 );
 
 router.post(
-  "/policy-assignments/role",
-  validateUUID,
+  "/policy-assignments/add",
   authMiddleware,
   permissionMiddleware(
     "policies.create",
   ),
-  assignUserPolicyController
+  addPolicyAssignController
 );
+
+// router.post(
+//   "/policy-assignments/role",
+//   validateUUID,
+//   authMiddleware,
+//   permissionMiddleware(
+//     "policies.create",
+//   ),
+//   assignUserPolicyController
+// );
 
 router.delete(
   "/policy-assignments/user/:id",

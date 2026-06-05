@@ -8,7 +8,7 @@ const {
 } = require("../repositories/auth.repository");
 
 const {
-  assignToRoleService,
+  assignPolicyListService,
   assignToUserService,
   deleteToRoleService,
   deleteToUserService
@@ -161,8 +161,25 @@ const deletePolicyController = async (req, res) => {
   });
 };
 
-const assignRolePolicyController = asyncHandler(async (req, res) => {
-  const result = await assignToRoleService(req.auth.org_id, req.body.role_id, req.body.policy_id);
+const assignPolicyListController = asyncHandler(async (req, res) => {
+  const result = await assignPolicyListService();
+
+  res.status(200).json({
+    success: true,
+    data: result,
+  });
+});
+
+const addPolicyAssignController = asyncHandler(async (req, res) => {
+  const {policy_id, org_id, type, user_id, role_id}  = req.body
+  const result = await prisma.policyAssignment.create({
+    data: {
+      policy_id, 
+      org_id, 
+      user_id, 
+      role_id
+    }
+  });
 
   res.status(200).json({
     success: true,
@@ -203,7 +220,8 @@ module.exports = {
   editPolicyController,
   updatePolicyController,
   deletePolicyController,
-  assignRolePolicyController,
+  assignPolicyListController,
+  addPolicyAssignController,
   assignUserPolicyController,
   deleteRolePolicyController,
   deleteUserPolicyController
